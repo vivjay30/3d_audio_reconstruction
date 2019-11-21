@@ -1,0 +1,49 @@
+import glob
+import json
+import os
+
+import numpy as np
+import torch
+import torchaudio
+
+
+class SpatialAudioDataset(torch.utils.data.Dataset):
+    def __init__(self, data_dir):
+        super(SpatialAudioDataset, self).__init__()
+
+        # Data is stored in subdirectories. Get all of them
+        self.dirs = sorted(glob.glob(os.path.join(data_dir, '*')))
+
+    def __len__(self):
+        return len(self.dirs)
+
+    def __getitem__(self, idx):
+        curr_dir = self.dirs[idx]
+
+        # Get all WAV files in subdirectory
+        audio_files = sorted(glob.glob(os.path.join(curr_dir, "*.wav")))
+
+
+        # First load data
+        specgrams = []
+        for audio_file in audio_files:
+            waveform, _ = torchaudio.load(audio_file)
+            specgram = torchaudio.transforms.Spectrogram()(waveform)
+            specgrams.append(specgram)
+
+        data = torch.cat(specgrams)
+
+        # Now load labels
+        with open(os.path.join(curr_dir, "metadata.json")) as f:
+            metadata = json.load(f)
+
+        # Get the direction in radians from -pi to pi
+        position = metadata["source1"]
+        direction = np.arctan(position[1] / position[0])
+        if position[0] < 0 and position[1] < 0:
+            direction -= np.pi
+
+        if position[0] < 0 and position[1] > 0:
+            direction += np.pi
+
+        return data, torch.tensor([direction])

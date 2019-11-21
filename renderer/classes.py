@@ -30,13 +30,11 @@ class SoundSource(object):
         self.start_time = start_time
 
 
-
 class Scene(object):
     def __init__(self, sources: List[SoundSource], mics: List[Microphone]):
         self.sources = sources
         self.mics = mics
 
-        print([x.sample_rate == sources[0].sample_rate for x in sources])
         assert all([x.sample_rate == sources[0].sample_rate for x in sources]), \
             "Sample rate conversion not supported right now"
 
@@ -60,6 +58,9 @@ class Scene(object):
                 mic.buffer += np.array(curr_buffer)
 
     def render_binaural(self, mic_idxs: List[int], output_filename: str, cutoff_time: float):
+        """
+        Renders a stero output with two chosen mics
+        """
         self.render(cutoff_time)
         left_data = self.mics[mic_idxs[0]].buffer
         right_data = self.mics[mic_idxs[1]].buffer
