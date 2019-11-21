@@ -27,7 +27,7 @@ for data_sample_idx in range(NUM_SCENES):
     random_x1, random_y1 = np.random.uniform(-15.0, 15.0, 2)
     random_x2, random_y2 = np.random.uniform(-15.0, 15.0, 2)
 
-    sound_source_voice = SoundSource([random_x1, random_y1, 0.0], os.path.join(SOUND_DIR, "always.flac"))
+    sound_source_voice = SoundSource([random_x1, random_y1, 0.0], os.path.join(SOUND_DIR, "guitar.wav"))
     sound_source_guitar = SoundSource([random_x2, random_y2, 0.0], os.path.join(SOUND_DIR, "the_accused.wav"))
 
     scene = Scene([sound_source_voice, sound_source_guitar], mic_array)

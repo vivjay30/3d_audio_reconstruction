@@ -3,10 +3,13 @@ from typing import List
 
 import numpy as np
 import torch
-import torchaudio
+import librosa
+import soundfile as sf
+
 
 from constants import SPEED_OF_SOUND
 
+INPUT_OUTPUT_TARGET_SAMPLE_RATE = 48000
 
 class Microphone(object):
     def __init__(self, position: List[float]):
@@ -19,16 +22,16 @@ class Microphone(object):
         self.sample_rate = None
 
     def save(self, filename: str):
-        data = torch.Tensor(self.buffer).view(1, -1)
-        torchaudio.save(filename, data, self.sample_rate)
+        data = self.buffer
+        sf.write(filename, data, self.sample_rate)
 
 
 class SoundSource(object):
-    def __init__(self, position: List[float], filename: str, start_time: float = 0.0):
+    def __init__(self, position: List[float], filename: str, offset: float = 0.0, duration = None, start_time: float = 0.0):
         assert(len(position) == 3)  # x, y, z
         self.position = np.array(position)
-        audio, sample_rate = torchaudio.load(filename)
-        audio = np.mean(audio.numpy(), axis=0)  # Convert to mono
+        audio, sample_rate = librosa.core.load(filename,  sr=INPUT_OUTPUT_TARGET_SAMPLE_RATE, mono=True, offset=offset, duration=duration)
+        #audio = np.mean(audio.numpy(), axis=0)  # Convert to mono
         self.audio = audio
         self.sample_rate = sample_rate
         self.start_time = start_time
@@ -78,6 +81,6 @@ class Scene(object):
         right_data = np.expand_dims(right_data, 0)
 
         stereo_data = np.concatenate((left_data, right_data))
-        torchaudio.save(output_filename, torch.tensor(stereo_data), self.sample_rate)
+        sf.write(output_filename, stereo_data, self.sample_rate)
 
 
