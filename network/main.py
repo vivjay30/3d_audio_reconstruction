@@ -25,12 +25,15 @@ def main():
     data_train = SpatialAudioDataset("../data/output_sounds")
     data_test = SpatialAudioDataset("../data/output_sounds")
     checkpoints_dir = "../data/checkpoints"
-    
+
+    import pdb
+    pdb.set_trace()
+
     use_cuda = USE_CUDA and torch.cuda.is_available()
 
     device = torch.device("cuda" if use_cuda else "cpu")
     print('Using device', device)
-    
+
     num_workers = multiprocessing.cpu_count()
     print('num workers:', num_workers)
 

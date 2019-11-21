@@ -5,6 +5,7 @@ import os
 import numpy as np
 import torch
 import torchaudio
+import librosa
 
 
 class SpatialAudioDataset(torch.utils.data.Dataset):
@@ -28,11 +29,13 @@ class SpatialAudioDataset(torch.utils.data.Dataset):
         # Maybe look into wavelets here or Mel Cepstrum
         specgrams = []
         for audio_file in audio_files:
-            waveform, _ = torchaudio.load(audio_file)
-            specgram = torchaudio.transforms.Spectrogram()(waveform)
-            specgrams.append(specgram)
+            waveform, sr = librosa.load(audio_file, sr=12000)
+            # waveform, sr = librosa.load(audio_file)
+            specgram = librosa.feature.melspectrogram(\
+            y=waveform, sr=sr, n_fft=1024, hop_length=565)
+            specgrams.append(torch.from_numpy(specgram))
 
-        data = torch.cat(specgrams) # NUM_MICS x Freq_bins x Time_bins
+        data = torch.stack(specgrams) # NUM_MICS x Freq_bins x Time_bins
 
         # Now load labels
         with open(os.path.join(curr_dir, "metadata.json")) as f:
