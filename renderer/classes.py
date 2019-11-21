@@ -10,6 +10,10 @@ from constants import SPEED_OF_SOUND
 
 class Microphone(object):
     def __init__(self, position: List[float]):
+        """
+        Args:
+            position: x,y,z list of floats
+        """
         self.position = np.array(position)
         self.buffer = np.array([])
         self.sample_rate = None
@@ -24,7 +28,7 @@ class SoundSource(object):
         assert(len(position) == 3)  # x, y, z
         self.position = np.array(position)
         audio, sample_rate = torchaudio.load(filename)
-        audio = np.mean(audio.numpy(), axis=0)
+        audio = np.mean(audio.numpy(), axis=0)  # Convert to mono
         self.audio = audio
         self.sample_rate = sample_rate
         self.start_time = start_time
@@ -41,6 +45,12 @@ class Scene(object):
         self.sample_rate = sources[0].sample_rate
 
     def render(self, cutoff_time: float):
+        """
+        Render all sound sources to all microphones.
+        Only does ITD.
+
+        cutoff_time: in seconds
+        """
         for mic in self.mics:
             # Initialize mic buffer to be empty correct size
             total_samples = int(cutoff_time * self.sample_rate)
@@ -69,9 +79,5 @@ class Scene(object):
 
         stereo_data = np.concatenate((left_data, right_data))
         torchaudio.save(output_filename, torch.tensor(stereo_data), self.sample_rate)
-
-
-
-
 
 

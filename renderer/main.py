@@ -8,20 +8,23 @@ from classes import Microphone, SoundSource, Scene
 SOUND_DIR = "../data/input_sounds"
 OUTPUT_DIR = "../data/output_sounds"
 
+NUM_MICS = 8
+NUM_SCENES = 10
+
 mic_array = []
-radius = 0.1  # Mic array has radius 0.3m
-for i in range(8):
-    position_x = radius * np.cos(2*np.pi / 8 * i)
-    position_y = radius * np.sin(2*np.pi / 8 * i)
+radius = 0.3  # Mic array has radius 0.3m
+for i in range(NUM_MICS):
+    position_x = radius * np.cos(2*np.pi / NUM_MICS * i)
+    position_y = radius * np.sin(2*np.pi / NUM_MICS * i)
     position_z = 0  # Assume planar for now
     mic_array.append(Microphone([position_x, position_y, position_z]))
 
-for data_sample_idx in range(10):
+for data_sample_idx in range(NUM_SCENES):
     data_dir = os.path.join(OUTPUT_DIR, "{:05d}".format(data_sample_idx))
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
 
-    random_x1, random_y1 = np.random.uniform(1.0, 15.0, 2)
+    random_x1, random_y1 = np.random.uniform(-15.0, 15.0, 2)
     random_x2, random_y2 = np.random.uniform(-15.0, 15.0, 2)
 
     sound_source_voice = SoundSource([random_x1, random_y1, 0.0], os.path.join(SOUND_DIR, "always.flac"))
@@ -43,3 +46,4 @@ for data_sample_idx in range(10):
     with open(metadata_file, "w") as f:
         json.dump(metadata, f, indent=4)
     # scene.render_binaural([0, 4], os.path.join(OUTPUT_DIR, "stereo.wav"), cutoff_time=6)
+

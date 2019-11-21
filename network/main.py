@@ -12,12 +12,6 @@ from resnet import resnet18
 def main():
     """
     Factor out common code to be used by all data corpuses.
-
-    data_train, data_test: Torch.Dataset subclass
-    sequence_length, batch_size: integers, must be the same used in the datasets
-    checkpoint_dir: Path to the model checkpoints
-
-    Returns: model, vocab object, device
     """
     BATCH_SIZE = 2
     TEST_BATCH_SIZE = 2

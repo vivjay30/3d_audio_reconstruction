@@ -23,27 +23,28 @@ class SpatialAudioDataset(torch.utils.data.Dataset):
         # Get all WAV files in subdirectory
         audio_files = sorted(glob.glob(os.path.join(curr_dir, "*.wav")))
 
-
         # First load data
+        # Todo: Make better spectrogram with dimensions, shape,
+        # Maybe look into wavelets here or Mel Cepstrum
         specgrams = []
         for audio_file in audio_files:
             waveform, _ = torchaudio.load(audio_file)
             specgram = torchaudio.transforms.Spectrogram()(waveform)
             specgrams.append(specgram)
 
-        data = torch.cat(specgrams)
+        data = torch.cat(specgrams) # NUM_MICS x Freq_bins x Time_bins
 
         # Now load labels
         with open(os.path.join(curr_dir, "metadata.json")) as f:
             metadata = json.load(f)
 
         # Get the direction in radians from -pi to pi
-        position = metadata["source1"]
+        position = metadata["source1"]  # x,y,z
         direction = np.arctan(position[1] / position[0])
         if position[0] < 0 and position[1] < 0:
             direction -= np.pi
 
-        if position[0] < 0 and position[1] > 0:
+        elif position[0] < 0 and position[1] > 0:
             direction += np.pi
 
         return data, torch.tensor([direction])
