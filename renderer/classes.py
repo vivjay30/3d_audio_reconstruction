@@ -7,7 +7,7 @@ import librosa
 import soundfile as sf
 
 
-from constants import SPEED_OF_SOUND
+from constants import SPEED_OF_SOUND, ATTENUATION_ALPHA
 
 INPUT_OUTPUT_TARGET_SAMPLE_RATE = 48000
 
@@ -47,7 +47,7 @@ class Scene(object):
 
         self.sample_rate = sources[0].sample_rate
 
-    def render(self, cutoff_time: float):
+    def render(self, cutoff_time: float, geometric_attenuation = True, atmospheric_attenuation = True):
         """
         Render all sound sources to all microphones.
         Only does ITD.
@@ -68,6 +68,10 @@ class Scene(object):
                 curr_buffer = np.concatenate((np.zeros((curr_start_samples)).astype(np.float64),
                                               source.audio))
                 curr_buffer = curr_buffer[:total_samples]
+                if (geometric_attenuation):
+                    curr_buffer = np.divide(curr_buffer, distance**2) # attenuation due to energy spreading over area 
+                if (atmospheric_attenuation):
+                    curr_buffer = np.multiply(curr_buffer, np.exp(-ATTENUATION_ALPHA * distance)) # attenuation due to atmosphere https://en.wikibooks.org/wiki/Engineering_Acoustics/Outdoor_Sound_Propagation
                 mic.buffer += np.array(curr_buffer)
 
     def render_binaural(self, mic_idxs: List[int], output_filename: str, cutoff_time: float):

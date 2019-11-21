@@ -24,8 +24,8 @@ for data_sample_idx in range(NUM_SCENES):
     if not os.path.exists(data_dir):
         os.makedirs(data_dir)
 
-    random_x1, random_y1 = np.random.uniform(-15.0, 15.0, 2)
-    random_x2, random_y2 = np.random.uniform(-15.0, 15.0, 2)
+    random_x1, random_y1 = np.random.uniform(-3.0, 3.0, 2)
+    random_x2, random_y2 = np.random.uniform(-3.0, 3.0, 2)
 
     sound_source_voice = SoundSource([random_x1, random_y1, 0.0], os.path.join(SOUND_DIR, "guitar.wav"))
     sound_source_guitar = SoundSource([random_x2, random_y2, 0.0], os.path.join(SOUND_DIR, "the_accused.wav"))
