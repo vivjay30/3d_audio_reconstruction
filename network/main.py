@@ -15,7 +15,7 @@ def main():
     """
     BATCH_SIZE = 2
     TEST_BATCH_SIZE = 2
-    EPOCHS = 20
+    EPOCHS = 3
     LEARNING_RATE = 0.000001
     WEIGHT_DECAY = 0.0005
     USE_CUDA = True
@@ -25,9 +25,6 @@ def main():
     data_train = SpatialAudioDataset("../data/output_sounds")
     data_test = SpatialAudioDataset("../data/output_sounds")
     checkpoints_dir = "../data/checkpoints"
-
-    import pdb
-    pdb.set_trace()
 
     use_cuda = USE_CUDA and torch.cuda.is_available()
 
