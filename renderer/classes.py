@@ -27,11 +27,22 @@ class Microphone(object):
 
 
 class SoundSource(object):
-    def __init__(self, position: List[float], filename: str, offset: float = 0.0, duration = None, start_time: float = 0.0):
+    def __init__(self, position: List[float], filename, offset: float = 0.0, duration = None,
+                 start_time: float = 0.0):
         assert(len(position) == 3)  # x, y, z
         self.position = np.array(position)
-        audio, sample_rate = librosa.core.load(filename,  sr=INPUT_OUTPUT_TARGET_SAMPLE_RATE, mono=True, offset=offset, duration=duration)
-        #audio = np.mean(audio.numpy(), axis=0)  # Convert to mono
+
+        if type(filename) is str:
+            audio, sample_rate = librosa.core.load(filename,  sr=INPUT_OUTPUT_TARGET_SAMPLE_RATE, mono=True,
+                                                   offset=offset, duration=duration)
+
+        else:
+            audio = np.array([])
+            for f in filename:
+                curr_audio, sample_rate = librosa.core.load(f,  sr=INPUT_OUTPUT_TARGET_SAMPLE_RATE, mono=True,
+                                                            offset=offset, duration=duration)
+                audio = np.concatenate((audio, curr_audio))
+
         self.audio = audio
         self.sample_rate = sample_rate
         self.start_time = start_time
@@ -85,6 +96,6 @@ class Scene(object):
         right_data = np.expand_dims(right_data, 0)
 
         stereo_data = np.concatenate((left_data, right_data))
-        sf.write(output_filename, stereo_data, self.sample_rate)
+        sf.write(output_filename, np.swapaxes(stereo_data, 0, 1), self.sample_rate)
 
 

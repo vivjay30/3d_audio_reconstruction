@@ -11,6 +11,8 @@ OUTPUT_DIR = "../data/output_sounds"
 NUM_MICS = 8
 NUM_SCENES = 10
 
+
+# Create mic array first
 mic_array = []
 radius = 0.3  # Mic array has radius 0.3m
 for i in range(NUM_MICS):
@@ -19,6 +21,8 @@ for i in range(NUM_MICS):
     position_z = 0  # Assume planar for now
     mic_array.append(Microphone([position_x, position_y, position_z]))
 
+
+# Render a large number of scenes
 for data_sample_idx in range(NUM_SCENES):
     data_dir = os.path.join(OUTPUT_DIR, "{:05d}".format(data_sample_idx))
     if not os.path.exists(data_dir):
@@ -27,10 +31,13 @@ for data_sample_idx in range(NUM_SCENES):
     random_x1, random_y1 = np.random.uniform(-3.0, 3.0, 2)
     random_x2, random_y2 = np.random.uniform(-3.0, 3.0, 2)
 
-    sound_source_voice = SoundSource([random_x1, random_y1, 0.0], os.path.join(SOUND_DIR, "guitar.wav"))
-    sound_source_guitar = SoundSource([random_x2, random_y2, 0.0], os.path.join(SOUND_DIR, "the_accused.wav"))
+    sound_source_music = SoundSource([random_x1, random_y1, 0.0], os.path.join(SOUND_DIR, "music/2436_short.wav"))
+    sound_source_voice = SoundSource([random_x2, random_y2, 0.0],
+                                      [os.path.join(SOUND_DIR, "voices/p239_001.wav"),
+                                       os.path.join(SOUND_DIR, "voices/p239_002.wav"),
+                                       os.path.join(SOUND_DIR, "voices/p239_003.wav")])
 
-    scene = Scene([sound_source_voice, sound_source_guitar], mic_array)
+    scene = Scene([sound_source_voice, sound_source_music], mic_array)
     scene.render(cutoff_time=6)
 
     for i, mic in enumerate(mic_array):
@@ -45,5 +52,5 @@ for data_sample_idx in range(NUM_SCENES):
     metadata_file = os.path.join(data_dir, "metadata.json")
     with open(metadata_file, "w") as f:
         json.dump(metadata, f, indent=4)
-    # scene.render_binaural([0, 4], os.path.join(OUTPUT_DIR, "stereo.wav"), cutoff_time=6)
+    scene.render_binaural([0, 4], os.path.join(OUTPUT_DIR, "stereo.wav"), cutoff_time=6)
 
