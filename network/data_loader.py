@@ -42,11 +42,5 @@ class SpatialAudioDataset(torch.utils.data.Dataset):
 
         # Get the direction in radians from -pi to pi
         position = metadata["source1"]  # x,y,z
-        direction = np.arctan(position[1] / position[0])
-        if position[0] < 0 and position[1] < 0:
-            direction -= np.pi
-
-        elif position[0] < 0 and position[1] > 0:
-            direction += np.pi
-
-        return data, torch.tensor([direction])
+        anglar_direction = np.arctan2(position[1], position[0])
+        return data, torch.tensor([anglar_direction])
