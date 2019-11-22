@@ -67,7 +67,7 @@ for data_sample_idx in range(NUM_SCENES):
 
     # Write every mic buffer to outputs
     for i, mic in enumerate(mic_array):
-        output_prefix = os.path.join(data_dir, "mic_{:02d}".format(i))
+        output_prefix = os.path.join(data_dir, "mic{:02d}_".format(i))
         mic.save(output_prefix)
         mic.reset()
 
