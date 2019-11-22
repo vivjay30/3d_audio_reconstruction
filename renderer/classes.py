@@ -6,10 +6,10 @@ import torch
 import librosa
 import soundfile as sf
 
-
 from constants import SPEED_OF_SOUND, ATTENUATION_ALPHA
 
 INPUT_OUTPUT_TARGET_SAMPLE_RATE = 48000
+
 
 class Microphone(object):
     def __init__(self, position: List[float]):
@@ -19,33 +19,79 @@ class Microphone(object):
         """
         self.position = np.array(position)
         self.buffer = np.array([])
+        self.sources_gt = []
         self.sample_rate = None
 
-    def save(self, filename: str):
-        data = self.buffer
-        sf.write(filename, data, self.sample_rate)
+    def save(self, output_prefix: str):
+        """
+        Write mixed buffer and gt sources
+        """
+        sf.write(output_prefix + "mixed.wav", self.buffer, self.sample_rate)
+        for idx, source in enumerate(self.sources_gt):
+            sf.write(output_prefix + "source_{:02}_gt.wav".format(idx), source,
+                     self.sample_rate)
+
+    def reset(self):
+        """
+        Empty all buffers
+        """
+        self.buffer = np.array([])
+        self.sources_gt = []
+        self.sample_rate = None
 
 
 class SoundSource(object):
-    def __init__(self, position: List[float], filename, offset: float = 0.0, duration = None,
+    def __init__(self,
+                 position: List[float],
+                 filename=None,
+                 data=None,
+                 sr=None,
+                 offset: float = 0.0,
+                 duration=None,
                  start_time: float = 0.0):
-        assert(len(position) == 3)  # x, y, z
+        """
+        Either filename should be passed, or data and sample rate
+        """
+        assert (len(position) == 3)  # x, y, z
         self.position = np.array(position)
 
-        if type(filename) is str:
-            audio, sample_rate = librosa.core.load(filename,  sr=INPUT_OUTPUT_TARGET_SAMPLE_RATE, mono=True,
-                                                   offset=offset, duration=duration)
+        if filename is None:
+            if data is None or sr is None:
+                raise (ValueError(
+                    "Either filename or audio and sampe rate must be provided")
+                       )
+            self.audio = data
+            self.sample_rate = sr
+            self.start_time = start_time
+
+        elif type(filename) is str:
+            audio, sample_rate = librosa.core.load(
+                filename,
+                sr=INPUT_OUTPUT_TARGET_SAMPLE_RATE,
+                mono=True,
+                offset=offset,
+                duration=duration)
+            self.audio = audio
+            self.sample_rate = sample_rate
+            self.start_time = start_time
 
         else:
             audio = np.array([])
             for f in filename:
-                curr_audio, sample_rate = librosa.core.load(f,  sr=INPUT_OUTPUT_TARGET_SAMPLE_RATE, mono=True,
-                                                            offset=offset, duration=duration)
+                curr_audio, sample_rate = librosa.core.load(
+                    f,
+                    sr=INPUT_OUTPUT_TARGET_SAMPLE_RATE,
+                    mono=True,
+                    offset=offset,
+                    duration=duration)
                 audio = np.concatenate((audio, curr_audio))
 
-        self.audio = audio
-        self.sample_rate = sample_rate
-        self.start_time = start_time
+            self.audio = audio
+            self.sample_rate = sample_rate
+            self.start_time = start_time
+
+    def save(self, filename: str):
+        sf.write(filename, self.audio, self.sample_rate)
 
 
 class Scene(object):
@@ -58,10 +104,13 @@ class Scene(object):
 
         self.sample_rate = sources[0].sample_rate
 
-    def render(self, cutoff_time: float, geometric_attenuation = True, atmospheric_attenuation = True):
+    def render(self,
+               cutoff_time: float,
+               geometric_attenuation=True,
+               atmospheric_attenuation=True):
         """
         Render all sound sources to all microphones.
-        Only does ITD.
+        Only does ITD and attenuation.
 
         cutoff_time: in seconds
         """
@@ -73,19 +122,33 @@ class Scene(object):
 
             # Render all sources to that mic
             for source in self.sources:
+                # ITD
                 distance = np.linalg.norm(mic.position - source.position)
                 curr_start_time = source.start_time + distance / SPEED_OF_SOUND
                 curr_start_samples = int(source.sample_rate * curr_start_time)
-                curr_buffer = np.concatenate((np.zeros((curr_start_samples)).astype(np.float64),
-                                              source.audio))
-                curr_buffer = curr_buffer[:total_samples]
+                curr_buffer = np.concatenate((np.zeros(
+                    (curr_start_samples)).astype(np.float64), source.audio))
+
+                # Attenuation
                 if (geometric_attenuation):
-                    curr_buffer = np.divide(curr_buffer, distance**2) # attenuation due to energy spreading over area 
+                    curr_buffer = np.divide(
+                        curr_buffer, distance**
+                        2)  # attenuation due to energy spreading over area
                 if (atmospheric_attenuation):
-                    curr_buffer = np.multiply(curr_buffer, np.exp(-ATTENUATION_ALPHA * distance)) # attenuation due to atmosphere https://en.wikibooks.org/wiki/Engineering_Acoustics/Outdoor_Sound_Propagation
+                    curr_buffer = np.multiply(
+                        curr_buffer, np.exp(-ATTENUATION_ALPHA * distance)
+                    )  # attenuation due to atmosphere https://en.wikibooks.org/wiki/Engineering_Acoustics/Outdoor_Sound_Propagation
+
+                # Pad if necessary to cutoff_time
+                curr_buffer = np.pad(curr_buffer, (0, total_samples))
+                curr_buffer = curr_buffer[:total_samples]
+
+                # Append to each mic
+                mic.sources_gt.append(curr_buffer)
                 mic.buffer += np.array(curr_buffer)
 
-    def render_binaural(self, mic_idxs: List[int], output_filename: str, cutoff_time: float):
+    def render_binaural(self, mic_idxs: List[int], output_filename: str,
+                        cutoff_time: float):
         """
         Renders a stero output with two chosen mics
         """
@@ -96,6 +159,5 @@ class Scene(object):
         right_data = np.expand_dims(right_data, 0)
 
         stereo_data = np.concatenate((left_data, right_data))
-        sf.write(output_filename, np.swapaxes(stereo_data, 0, 1), self.sample_rate)
-
-
+        sf.write(output_filename, np.swapaxes(stereo_data, 0, 1),
+                 self.sample_rate)
