@@ -13,8 +13,8 @@ def main():
     """
     Factor out common code to be used by all data corpuses.
     """
-    BATCH_SIZE = 2
-    TEST_BATCH_SIZE = 2
+    BATCH_SIZE = 1
+    TEST_BATCH_SIZE = 1
     EPOCHS = 3
     LEARNING_RATE = 0.000001
     WEIGHT_DECAY = 0.0005
@@ -26,12 +26,12 @@ def main():
     data_test = SpatialAudioDataset("../data/output_sounds")
     checkpoints_dir = "../data/checkpoints"
 
-    use_cuda = USE_CUDA and torch.cuda.is_available()
+    use_cuda = False # USE_CUDA and torch.cuda.is_available()
 
     device = torch.device("cuda" if use_cuda else "cpu")
     print('Using device', device)
 
-    num_workers = multiprocessing.cpu_count()
+    num_workers = 1 # multiprocessing.cpu_count()
     print('num workers:', num_workers)
 
     kwargs = {'num_workers': num_workers,

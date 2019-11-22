@@ -26,9 +26,9 @@ class Microphone(object):
         """
         Write mixed buffer and gt sources
         """
-        sf.write(output_prefix + "mixed.wav", self.buffer, self.sample_rate)
+        sf.write(output_prefix + "_mixed.wav", self.buffer, self.sample_rate)
         for idx, source in enumerate(self.sources_gt):
-            sf.write(output_prefix + "source_{:02}_gt.wav".format(idx), source,
+            sf.write(output_prefix + "_source{:02}_gt.wav".format(idx), source,
                      self.sample_rate)
 
     def reset(self):
