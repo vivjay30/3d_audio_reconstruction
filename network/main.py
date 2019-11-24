@@ -4,26 +4,27 @@ import numpy as np
 import torch
 import torch.optim as optim
 
-from data_loader import SpatialAudioDataset
-from train_test import train, test
-from resnet import resnet18
-
+from d3audiorecon.network.data_loader import SpatialAudioDataset, \
+    NUM_BINS
+from d3audiorecon.network.train_test import train, test
+from d3audiorecon.network.resnet import resnet18, resnet50
+from d3audiorecon.network.simplenet import SimpleNet
 
 def main():
     """
     Factor out common code to be used by all data corpuses.
     """
-    BATCH_SIZE = 2
-    TEST_BATCH_SIZE = 2
-    EPOCHS = 3
-    LEARNING_RATE = 0.000001
-    WEIGHT_DECAY = 0.0005
+    BATCH_SIZE = 4
+    TEST_BATCH_SIZE = 4
+    EPOCHS = 20
+    LEARNING_RATE = .00001
+    WEIGHT_DECAY = 0 #0.0005
     USE_CUDA = True
     PRINT_INTERVAL = 10
     LOG_PATH = "../data/logs/log.pkl"
 
-    data_train = SpatialAudioDataset("../data/output_sounds")
-    data_test = SpatialAudioDataset("../data/output_sounds")
+    data_train = SpatialAudioDataset("../data/output_sounds/train_iso/")
+    data_test = SpatialAudioDataset("../data/output_sounds/test_iso/")
     checkpoints_dir = "../data/checkpoints"
 
     use_cuda = USE_CUDA and torch.cuda.is_available()
@@ -38,28 +39,31 @@ def main():
               'pin_memory': True} if use_cuda else {}
 
     train_loader = torch.utils.data.DataLoader(data_train, batch_size=BATCH_SIZE,
-                                               shuffle=False, **kwargs)
+                                               shuffle=True, **kwargs)
     test_loader = torch.utils.data.DataLoader(data_test, batch_size=TEST_BATCH_SIZE,
-                                              shuffle=False, **kwargs)
+                                              shuffle=True, **kwargs)
 
 
     # Key modifcations to resnet include changing the input and output channels
-    model = resnet18()
+    model = resnet50(pretrained=True, num_classes=NUM_BINS).to(device)
+    #model = SimpleNet().to(device)
 
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
     start_epoch = 0
 
     train_losses, test_losses, test_accuracies = ([], [], [])
-    test_loss = test(model, device, test_loader)
+    # test_loss = test(model, device, test_loader)
 
-    test_losses.append((start_epoch, test_loss))
+    # test_losses.append((start_epoch, test_loss))
 
     try:
         for epoch in range(start_epoch, EPOCHS + 1):
-            lr = LEARNING_RATE * np.power(0.25, (int(epoch / 6)))
-            train_loss = train(model, device, optimizer, train_loader, lr, epoch, PRINT_INTERVAL)
+            #lr = LEARNING_RATE * np.power(0.25, (int(epoch / 6)))
+            train_loss = train(model, device, optimizer, train_loader, None, epoch, PRINT_INTERVAL)
             test_loss = test(model, device, test_loader)
             train_losses.append((epoch, train_loss))
+            print("Train Loss: {}".format(train_loss))
+            # print("Test Loss: {}".format(test_loss))
             test_losses.append((epoch, test_loss))
 
     except KeyboardInterrupt as ke:
@@ -67,6 +71,8 @@ def main():
     except:
         import traceback
         traceback.print_exc()
+
+    torch.save(model, "trained_iso.pt")
     # finally:
     #     print('Saving final model')
     #     model.save_model(DATA_PATH + checkpoints_dir + '/%03d.pt' % epoch, 0)

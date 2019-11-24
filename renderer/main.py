@@ -5,14 +5,14 @@ import random
 import numpy as np
 import librosa
 
-from classes import Microphone, SoundSource, Scene, \
+from d3audiorecon.renderer.classes import Microphone, SoundSource, Scene, \
     INPUT_OUTPUT_TARGET_SAMPLE_RATE
 
 SOUND_DIR = "../data/input_sounds"
-OUTPUT_DIR = "../data/output_sounds"
+OUTPUT_DIR = "../data/output_sounds/test_quiet_attenuated"
 
 NUM_MICS = 8
-NUM_SCENES = 10
+NUM_SCENES = 1000
 VOICE_FILES = 3  # Voice files are ~2 seconds. Use this many
 SCENE_DURATION = 6.0  # For now we are doing scenes of 6 seconds
 
@@ -31,10 +31,12 @@ music_data, music_sr = librosa.core.load(
     sr=INPUT_OUTPUT_TARGET_SAMPLE_RATE,
     mono=True,
 )
+music_data *= 0.3  # Quiet the music
 
 # Render a large number of scenes
 for data_sample_idx in range(NUM_SCENES):
-    starting_voice_idx = random.randint(0, 100 - VOICE_FILES)  # We have 100 files
+    print(data_sample_idx)
+    starting_voice_idx = random.randint(1, 100 - VOICE_FILES)  # We have 100 files
 
     # Data dir is 5 digit sequential numerical
     data_dir = os.path.join(OUTPUT_DIR, "{:05d}".format(data_sample_idx))
@@ -42,8 +44,8 @@ for data_sample_idx in range(NUM_SCENES):
         os.makedirs(data_dir)
 
     # Generate random positions for the sources
-    random_x0, random_y0 = np.random.uniform(-5.0, 5.0, 2)
-    random_x1, random_y1 = np.random.uniform(-5.0, 5.0, 2)
+    random_x0, random_y0 = np.random.uniform(-10.0, 10.0, 2)
+    random_x1, random_y1 = np.random.uniform(-10.0, 10.0, 2)
 
 
     voice_files = [

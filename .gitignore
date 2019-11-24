@@ -1,5 +1,8 @@
 *.pyc
 *.DS_Store
+*.png
+.*
+*.pt
 
 # Data folder
 data/

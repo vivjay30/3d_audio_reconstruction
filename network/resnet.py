@@ -1,5 +1,11 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
+try:
+    from torch.hub import load_state_dict_from_url
+except ImportError:
+    from torch.utils.model_zoo import load_url as load_state_dict_from_url
 
 
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
@@ -118,7 +124,7 @@ class Bottleneck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, block, layers, num_classes=1, zero_init_residual=False,
+    def __init__(self, block, layers, num_classes=1000, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None,
                  norm_layer=None):
         super(ResNet, self).__init__()
@@ -137,7 +143,7 @@ class ResNet(nn.Module):
                              "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
         self.groups = groups
         self.base_width = width_per_group
-        self.conv1 = nn.Conv2d(8, self.inplanes, kernel_size=7, stride=2, padding=3,
+        self.conv1_mod = nn.Conv2d(8, self.inplanes, kernel_size=7, stride=2, padding=3,
                                bias=False)
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
@@ -150,7 +156,7 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
                                        dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        self.fc_mod = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -194,7 +200,7 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def _forward(self, x):
-        x = self.conv1(x)
+        x = self.conv1_mod(x)
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
@@ -206,9 +212,13 @@ class ResNet(nn.Module):
 
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
-        x = self.fc(x)
+        x = self.fc_mod(x)
 
-        return x
+        return F.log_softmax(x)
+
+    def loss(self, prediction, label, reduction='elementwise_mean'):
+        loss_val = F.cross_entropy(prediction, label, reduction=reduction)
+        return loss_val
 
     # Allow for accessing forward method in a inherited class
     forward = _forward
@@ -219,7 +229,7 @@ def _resnet(arch, block, layers, pretrained, progress, **kwargs):
     if pretrained:
         state_dict = load_state_dict_from_url(model_urls[arch],
                                               progress=progress)
-        model.load_state_dict(state_dict)
+        model.load_state_dict(state_dict, strict=False)
     return model
 
 

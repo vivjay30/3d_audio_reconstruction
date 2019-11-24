@@ -6,7 +6,8 @@ import torch
 import librosa
 import soundfile as sf
 
-from constants import SPEED_OF_SOUND, ATTENUATION_ALPHA
+from d3audiorecon.renderer.constants import \
+    SPEED_OF_SOUND, ATTENUATION_ALPHA
 
 INPUT_OUTPUT_TARGET_SAMPLE_RATE = 48000
 
@@ -28,7 +29,7 @@ class Microphone(object):
         """
         sf.write(output_prefix + "mixed.wav", self.buffer, self.sample_rate)
         for idx, source in enumerate(self.sources_gt):
-            sf.write(output_prefix + "source_{:02}_gt.wav".format(idx), source,
+            sf.write(output_prefix + "source{:02}_gt.wav".format(idx), source,
                      self.sample_rate)
 
     def reset(self):
