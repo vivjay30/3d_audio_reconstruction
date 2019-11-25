@@ -29,6 +29,7 @@ def main():
 
     data_train = SpatialAudioDataset(DATA_TRAIN_PATH)
     data_test = SpatialAudioDataset(DATA_TEST_PATH)
+
     checkpoints_dir = "../data/checkpoints"
 
     use_cuda = USE_CUDA and torch.cuda.is_available()
@@ -48,7 +49,8 @@ def main():
                                               shuffle=True, **kwargs)
 
     # Key modifcations to resnet include changing the input and output channels
-    model = resnet50(pretrained=True, num_classes=NUM_BINS).to(device)
+    #model = resnet50(pretrained=True, num_classes=NUM_BINS).to(device)
+    model = torch.load("trained_mixed.pt")
     #model = SimpleNet().to(device)
 
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
@@ -75,7 +77,7 @@ def main():
         import traceback
         traceback.print_exc()
 
-    torch.save(model, "trained_iso.pt")
+    torch.save(model, "trained_mixed.pt")
     # finally:
     #     print('Saving final model')
     #     model.save_model(DATA_PATH + checkpoints_dir + '/%03d.pt' % epoch, 0)
