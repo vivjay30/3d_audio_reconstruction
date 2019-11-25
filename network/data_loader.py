@@ -9,7 +9,7 @@ import librosa
 
 import math
 
-sys.path.insert(1, os.path.realpath(os.path.pardir)) 
+sys.path.insert(1, os.path.realpath(os.path.pardir))
 from d3audiorecon.tools.utils import read_file, log_mel_spec_tfm, \
     save_spectrogram
 
@@ -61,7 +61,7 @@ class SpatialAudioDataset(torch.utils.data.Dataset):
         position = metadata["source00"]["position"]  # x,y,z
         angular_direction = np.arctan2(position[1], position[0])
         label = int(math.floor((angular_direction + np.pi) * NUM_BINS / (2 * np.pi)))
-        
+
         # Ground truth spec
         # gt_specgrams = []
         # for gt_audio_file in gt_audio_files:

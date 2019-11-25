@@ -1,5 +1,6 @@
 import multiprocessing
 
+import argparse
 import numpy as np
 import torch
 import torch.optim as optim
@@ -9,6 +10,9 @@ from d3audiorecon.network.data_loader import SpatialAudioDataset, \
 from d3audiorecon.network.train_test import train, test
 from d3audiorecon.network.resnet import resnet18, resnet50
 from d3audiorecon.network.simplenet import SimpleNet
+
+DATA_TRAIN_PATH = "../data/output_sounds/train_iso/"
+DATA_TEST_PATH = "../data/output_sounds/test_iso/"
 
 def main():
     """
@@ -23,8 +27,8 @@ def main():
     PRINT_INTERVAL = 10
     LOG_PATH = "../data/logs/log.pkl"
 
-    data_train = SpatialAudioDataset("../data/output_sounds/train_iso/")
-    data_test = SpatialAudioDataset("../data/output_sounds/test_iso/")
+    data_train = SpatialAudioDataset(DATA_TRAIN_PATH)
+    data_test = SpatialAudioDataset(DATA_TEST_PATH)
     checkpoints_dir = "../data/checkpoints"
 
     use_cuda = USE_CUDA and torch.cuda.is_available()
@@ -42,7 +46,6 @@ def main():
                                                shuffle=True, **kwargs)
     test_loader = torch.utils.data.DataLoader(data_test, batch_size=TEST_BATCH_SIZE,
                                               shuffle=True, **kwargs)
-
 
     # Key modifcations to resnet include changing the input and output channels
     model = resnet50(pretrained=True, num_classes=NUM_BINS).to(device)
@@ -87,5 +90,16 @@ def main():
     #     return model, vocab, device
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='arguments for network/main.py')
+    parser.add_argument("--train_path")
+    parser.add_argument("--test_path")
 
+    args = parser.parse_args()
+    if (args.train_path):
+        DATA_TRAIN_PATH=args.train_path
+    if (args.test_path):
+        DATA_TEST_PATH=args.test_path
+
+    print("loading train files in ", DATA_TRAIN_PATH)
+    print("loading train files in ", DATA_TEST_PATH)
+    main()
