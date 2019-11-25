@@ -101,5 +101,5 @@ if __name__ == "__main__":
         DATA_TEST_PATH=args.test_path
 
     print("loading train files in ", DATA_TRAIN_PATH)
-    print("loading train files in ", DATA_TEST_PATH)
+    print("loading test files in ", DATA_TEST_PATH)
     main()
