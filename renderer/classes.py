@@ -49,7 +49,8 @@ class SoundSource(object):
                  sr=None,
                  offset: float = 0.0,
                  duration=None,
-                 start_time: float = 0.0):
+                 start_time: float = 0.0,
+                 trim_silence=True):
         """
         Either filename should be passed, or data and sample rate
         """
@@ -90,6 +91,12 @@ class SoundSource(object):
             self.audio = audio
             self.sample_rate = sample_rate
             self.start_time = start_time
+        # Trim silence at the beginning, making sure we have something
+        if trim_silence:
+            new_audio = librosa.effects.trim(self.audio, top_db=20)[0]
+            if len(new_audio) < 100:
+                new_audio = librosa.effects.trim(self.audio, top_db=80)[0]
+            self.audio = new_audio
 
     def save(self, filename: str):
         sf.write(filename, self.audio, self.sample_rate)
