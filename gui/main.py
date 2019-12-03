@@ -294,6 +294,7 @@ delete_source_button.rect.bottomleft = (play_source_button.rect.bottomright[0] +
 render_button = Button((0,0,368,64), BLUE, render, text="RENDER", **BLUE_BUTTON_STYLE)
 render_button.rect.center = (SOURCE_DISPLAY_WIDTH + SPEC_DISPLAY_WIDTH//2, 48)
 
+# Define area for rendered specgram placeholder
 specgram_rect  = pg.Rect((SOURCE_DISPLAY_WIDTH + SPEC_DISPLAY_WIDTH//2 - SPECGRAM_SIZE[0]//2, render_button.rect.bottom + 16), SPECGRAM_SIZE)
 
 play_rendered_button = Button((0,0,368,24), DARK_GREY, play_render, text="Play rendered mix", **BUTTON_STYLE)
@@ -418,9 +419,8 @@ while not exit:
         for i in range(-ROOM_SIZE//2, ROOM_SIZE//2):
             pg.draw.line(screen, DARK_GREY, meter_to_pixel_pos((-ROOM_SIZE//2, i)), meter_to_pixel_pos((ROOM_SIZE//2, i)), 1)
         
-
         #bin_in = 6
-        # If the bin_in from angle network is defined, draw the corresponding polygon  
+        # If the bin_in from angle network is defined, draw the corresponding shaded polygon  
         try:
             bin_in
         except NameError:
@@ -443,7 +443,9 @@ while not exit:
         # Draw specgram placeholder area
         pg.draw.rect(screen, LIGHT_GREY, specgram_rect)
 
-        # TODO if specgram exists, draw it
+        # TODO if specgram exists, draw it in the specgram area
+
+        # TODO repeat for source separation network too
 
         # Draw line separating source UI panel area from specgram panel
         pg.draw.line(screen, DARK_GREY, (SOURCE_DISPLAY_WIDTH, 0), (SOURCE_DISPLAY_WIDTH, DISPLAY_HEIGHT), 5) 
