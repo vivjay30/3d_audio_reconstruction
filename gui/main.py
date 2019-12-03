@@ -1,4 +1,4 @@
-""" 
+"""
 Install dependencies: python3 -m pip install -U pg --user
 
 Small applet for bulding audio scenes
@@ -13,7 +13,7 @@ this source to move it around. Click the "New Background Source" button to insta
 background source. User may add up to NUM_BG_SOURCES number of a background sources.
 
 When a source is selected, it will turn red. Two options will be possible: replace source and
-delete. Foreground source cannot be deleted. 
+delete. Foreground source cannot be deleted.
 
 Right panel has button to render sound setup on right. Once rendered specgram is shown displayed.
 
@@ -58,7 +58,7 @@ HOVER_LIGHT_GREY = (220, 220, 220)
 DARK_GREY = (37, 37, 38)
 HOVER_DARK_GREY = (37*1.8, 37*1.8, 38*1.8)
 
-# Dictionary of different source types 
+# Dictionary of different source types
 SOURCE_TYPES = {0:"foreground", 1:"background"}
 BG_PATH = "../data/input_sounds/background/"
 FG_PATH = "../data/input_sounds/voices/"
@@ -74,10 +74,9 @@ STATUS_HOLD_TIME = 2000
 # Init
 pg.init()
 
-# Detine base font
-font = pg.font.SysFont('couriernew', 14) 
-font_large = pg.font.SysFont('couriernew', 24) 
-
+# Define base font
+font = pg.font.SysFont('helvetica', 14)
+font_large = pg.font.SysFont('helvetica', 24)
 
 # Define default button style
 BUTTON_STYLE = {"font" : font,
@@ -135,7 +134,7 @@ class Source(pg.sprite.Sprite):
         if self.source_type == 0: # If source is a foreground type
             self.image = self.images[0]
         if self.source_type == 1: # If source is a background type
-            self.image = self.images[1]            
+            self.image = self.images[1]
         self.selected = False # triggered whenever a quick click on sprite results in selection
         self.clicked = False # triggered whenever the mouse button is down on the sprite
         self.rect = self.image.get_rect()
@@ -145,7 +144,7 @@ class Source(pg.sprite.Sprite):
         # Position in meters with (0,0) as center of room
         self.position = pixel_to_meter_pos(self.rect.center)
         # Angle in degrees
-        self.angle = math.degrees(math.atan2(self.position[1],self.position[0]))  
+        self.angle = math.degrees(math.atan2(self.position[1],self.position[0]))
         # Label associated with source instance
         self.text = SOURCE_TYPES[self.source_type] + " source: "+ ('%.4f' % self.position[0]) + ", " + ('%.4f' % self.position[1]) + \
                             "   Angle: " + ('%.4f' % self.angle)
@@ -154,7 +153,7 @@ class Source(pg.sprite.Sprite):
             self.sound = pg.mixer.Sound(pick_random_file(FG_PATH))
         if self.source_type == 1: # If source is a background type
             self.sound = pg.mixer.Sound(pick_random_file(BG_PATH))
- 
+
 # Intialize, render screen, start clock
 screen = pg.display.set_mode((SOURCE_DISPLAY_WIDTH + SPEC_DISPLAY_WIDTH, DISPLAY_HEIGHT))
 pg.display.set_caption("Speaker renderer")
@@ -214,7 +213,7 @@ def change_source(source):
         current_status = statuses[4]
         global status_timer
         status_timer = pg.time.get_ticks()
-        
+
 
 # Iterate through all selected sources and delete those that are selected
 def change_source_selected():
@@ -277,7 +276,7 @@ def render():
 
 def play_render():
     return  #TODO Define play_render
-    
+
 # Button definitions and positioning
 new_source_button = Button((0,0,200,24), DARK_GREY, add_source, text="New background source", **BUTTON_STYLE)
 new_source_button.rect.bottomleft = (screen.get_rect().bottomleft[0] + 5, screen.get_rect().bottomleft[1] - 5)
@@ -302,7 +301,7 @@ play_rendered_button.rect.center = (SOURCE_DISPLAY_WIDTH + SPEC_DISPLAY_WIDTH//2
 button_list = [new_source_button, change_source_button, play_source_button, delete_source_button, render_button, play_rendered_button]
 
 # Add one foreground source
-add_source(x=random.randint(0.25*SOURCE_DISPLAY_WIDTH, 0.75*SOURCE_DISPLAY_WIDTH), y=random.randint(0.25*DISPLAY_HEIGHT, 0.75*DISPLAY_HEIGHT), source_type=0) 
+add_source(x=random.randint(0.25*SOURCE_DISPLAY_WIDTH, 0.75*SOURCE_DISPLAY_WIDTH), y=random.randint(0.25*DISPLAY_HEIGHT, 0.75*DISPLAY_HEIGHT), source_type=0)
 
 # Main program loop
 while not exit:
@@ -349,11 +348,11 @@ while not exit:
                         if source.rect.collidepoint(pos):
                             something_there_already = True
                             delete_source(source)
-                    
+
                     #  If there's nothing there, instantiate a new sprite
                     if not something_there_already:
                         add_source(x=x, y=y,idx=len(source_list)+1, source_type=1) # TODO: fix iteration scheme
-                
+
                 # If left-clicked
                 elif event.button == 1:
                     for source in source_list:
@@ -364,7 +363,7 @@ while not exit:
                             # if not source.clicked:
                             #     source.selected = not source.selected
                             source.selected = True
-                            source.clicked = True 
+                            source.clicked = True
                             clicked_on_nothing = False
                             if pos_offset == (-1,-1):
                                 pos_offset = (x - source.rect.topleft[0], y - source.rect.topleft[1])
@@ -375,7 +374,7 @@ while not exit:
                         for source in source_list:
                             source.selected = False # de-select currently selected sprite
 
-            # Mark all sources as unclicked if no mouse button is pressed 
+            # Mark all sources as unclicked if no mouse button is pressed
             if event.type == pg.MOUSEBUTTONUP:
                 for source in source_list:
                     source.clicked = False
@@ -388,7 +387,7 @@ while not exit:
                     source.rect.x = min(pos[0] - pos_offset[0], SOURCE_DISPLAY_WIDTH-(source.rect.width//2))
                     source.rect.y = pos[1] - pos_offset[1]
                     source.position = pixel_to_meter_pos(source.rect.center)
-                    source.angle = math.degrees(math.atan2(source.position[1],source.position[0])) 
+                    source.angle = math.degrees(math.atan2(source.position[1],source.position[0]))
                     source.text = SOURCE_TYPES[source.source_type] + " source: "+ ('%.4f' % source.position[0]) + ", " + ('%.4f' % source.position[1]) + \
                             "   Angle: " + ('%.4f' % source.angle)
                 # Update source's icon if selected
@@ -417,10 +416,10 @@ while not exit:
             pg.draw.line(screen, DARK_GREY, meter_to_pixel_pos((i, -ROOM_SIZE//2)), meter_to_pixel_pos((i, ROOM_SIZE//2)), 1)
         for i in range(-ROOM_SIZE//2, ROOM_SIZE//2):
             pg.draw.line(screen, DARK_GREY, meter_to_pixel_pos((-ROOM_SIZE//2, i)), meter_to_pixel_pos((ROOM_SIZE//2, i)), 1)
-        
+
 
         #bin_in = 6
-        # If the bin_in from angle network is defined, draw the corresponding polygon  
+        # If the bin_in from angle network is defined, draw the corresponding polygon
         try:
             bin_in
         except NameError:
@@ -428,7 +427,7 @@ while not exit:
         else:
             bin_in_exists = True
             angle_range = bin_index_to_angle_range(bin_in)
-        
+
         if (bin_in_exists):
             a = int(2*ROOM_SIZE*math.cos(angle_range[0]))
             b = int(2*ROOM_SIZE*math.sin(angle_range[0]))
@@ -446,8 +445,8 @@ while not exit:
         # TODO if specgram exists, draw it
 
         # Draw line separating source UI panel area from specgram panel
-        pg.draw.line(screen, DARK_GREY, (SOURCE_DISPLAY_WIDTH, 0), (SOURCE_DISPLAY_WIDTH, DISPLAY_HEIGHT), 5) 
-      
+        pg.draw.line(screen, DARK_GREY, (SOURCE_DISPLAY_WIDTH, 0), (SOURCE_DISPLAY_WIDTH, DISPLAY_HEIGHT), 5)
+
         # Update button looks
         new_source_button.update(screen)
         change_source_button.update(screen)
@@ -478,4 +477,3 @@ while not exit:
 pg.quit()
 
 
-                    
