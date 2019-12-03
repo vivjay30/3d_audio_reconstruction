@@ -93,28 +93,34 @@ RED_BUTTON_STYLE = {"font" : font,
                 "clicked_font_color" : WHITE,
                 "hover_font_color" : WHITE}
 
-# Define red button style
+# Define blue button style
 BLUE_BUTTON_STYLE = {"font" : font_large,
                 "hover_color" : LIGHT_BLUE,
                 "clicked_color" : LIGHTER_BLUE,
                 "clicked_font_color" : WHITE,
                 "hover_font_color" : WHITE}
 
+# Helper functions
+# Translates between meter coodinates and pixel coordinates
 def pixel_to_meter_pos(position_in_pixels: tuple):
     return (((position_in_pixels[0]- SOURCE_DISPLAY_WIDTH//2) / PIXELS_PER_METER, (DISPLAY_HEIGHT//2 - position_in_pixels[1]) / PIXELS_PER_METER))
 
 def meter_to_pixel_pos(position_in_meters: tuple):
     return (position_in_meters[0] * PIXELS_PER_METER + SOURCE_DISPLAY_WIDTH//2, -1*position_in_meters[1] *  PIXELS_PER_METER + DISPLAY_HEIGHT//2)
 
+# Grab a random rile from a specific directory
 def pick_random_file(path: str):
     return path + random.choice(os.listdir(path))
 
+# Takes bin_in from angle network computes angle range corresponding to that bin
+# 0th bin_in is the bin going counterclockwise starting at the ray from the origin to (-1, 0)
+# 0th bin_out is the bin going counterclockwise starting at the ray from the origin to (1, 0)
 def bin_index_to_angle_range(bin_idx: int):
     num_bins = 360 // BIN_SIZE
     # peform 180 deg rotation of bins
-    bin = (bin_idx + num_bins/2) % num_bins
+    bin_out = (bin_idx + num_bins/2) % num_bins
     # return tuple with angle range for bin boundaries
-    return (math.radians((bin * BIN_SIZE) % 360), math.radians(((bin+1) * BIN_SIZE) % 360))
+    return (math.radians((bin_out * BIN_SIZE) % 360), math.radians(((bin_out+1) * BIN_SIZE) % 360))
 
 # Constructor for sources. Each source carries these attributes
 class Source(pg.sprite.Sprite):
@@ -153,8 +159,11 @@ class Source(pg.sprite.Sprite):
 screen = pg.display.set_mode((SOURCE_DISPLAY_WIDTH + SPEC_DISPLAY_WIDTH, DISPLAY_HEIGHT))
 pg.display.set_caption("Speaker renderer")
 
+# Define separate surface for the source UI panel that can handle per-pixel transparencies
+# Used only for transparent polygons
 source_ui_area = pg.Surface((SOURCE_DISPLAY_WIDTH, DISPLAY_HEIGHT), pg.SRCALPHA)
 
+# Start pygame clock
 clock = pg.time.Clock()
 
 # Exit flag
@@ -176,8 +185,8 @@ statuses = ["", \
 current_status = statuses[0]
 status_timer = pg.time.get_ticks()
 
-
-def change_color():
+# Dummy function
+def dummy_function():
     print("hi")
 
 # Makes a new Source and adds it to the source list
@@ -194,7 +203,7 @@ def add_source(x=300, y=300, idx=len(source_list)+1, source_type=1):
         global status_timer
         status_timer = pg.time.get_ticks()
 
-
+# Grabs a random sound from corresponding directory and assign it to the source
 def change_source(source):
         pg.mixer.fadeout(300)
         if source.source_type == 0: # If source is a foreground type
@@ -219,6 +228,7 @@ def change_source_selected():
     global status_timer
     status_timer = pg.time.get_ticks()
 
+# Plays sound associated with source
 def play_source(source):
     pg.mixer.fadeout(300)
     source.sound.play()
@@ -235,7 +245,7 @@ def play_source_selected():
     global status_timer
     status_timer = pg.time.get_ticks()
 
-
+# Remove source
 def delete_source(source):
     pg.mixer.fadeout(300)
     global source_list
@@ -409,8 +419,8 @@ while not exit:
             pg.draw.line(screen, DARK_GREY, meter_to_pixel_pos((-ROOM_SIZE//2, i)), meter_to_pixel_pos((ROOM_SIZE//2, i)), 1)
         
 
-        bin_in = 0
-        # Draw the polygon  
+        #bin_in = 6
+        # If the bin_in from angle network is defined, draw the corresponding polygon  
         try:
             bin_in
         except NameError:
@@ -419,16 +429,16 @@ while not exit:
             bin_in_exists = True
             angle_range = bin_index_to_angle_range(bin_in)
         
-        # if (bin_in_exists):
-        #     a = int(2*ROOM_SIZE*math.acos(angle_range[0]))
-        #     b = int(2*ROOM_SIZE*math.asin(angle_range[0]))
-        #     c = int(2*ROOM_SIZE*math.acos(angle_range[1]))
-        #     d = int(2*ROOM_SIZE*math.asin(angle_range[1]))
-        #     pg.draw.polygon(source_ui_area, LIGHT_GREY_ALPHA, \
-        #                     [meter_to_pixel_pos((0,0)), \
-        #                      meter_to_pixel_pos(a,b), \
-        #                      meter_to_pixel_pos((c,d))])
-        # screen.blit(source_ui_area, source_ui_area.get_rect())
+        if (bin_in_exists):
+            a = int(2*ROOM_SIZE*math.cos(angle_range[0]))
+            b = int(2*ROOM_SIZE*math.sin(angle_range[0]))
+            c = int(2*ROOM_SIZE*math.cos(angle_range[1]))
+            d = int(2*ROOM_SIZE*math.sin(angle_range[1]))
+            pg.draw.polygon(source_ui_area, LIGHT_GREY_ALPHA, \
+                            [meter_to_pixel_pos((0,0)), \
+                             meter_to_pixel_pos((a,b)), \
+                             meter_to_pixel_pos((c,d))])
+        screen.blit(source_ui_area, source_ui_area.get_rect())
 
         # Draw specgram placeholder area
         pg.draw.rect(screen, LIGHT_GREY, specgram_rect)
@@ -460,11 +470,6 @@ while not exit:
 
         # Update the screen
         pg.display.update()
-
-        #TODO play sounds when clicked
-        # for source in source_list:
-        #     if source.selected:
-        #         source.sound.play()
 
         # 60 fps
         clock.tick(60)
