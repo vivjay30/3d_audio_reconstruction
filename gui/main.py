@@ -28,6 +28,17 @@ import random
 # Button class from https://github.com/Mekire/pg-button
 from button import Button
 
+import numpy as np
+import librosa
+import shutil
+import json
+
+from d3audiorecon.renderer.classes import Microphone, SoundSource, Scene, \
+    INPUT_OUTPUT_TARGET_SAMPLE_RATE
+
+from d3audiorecon.tools.utils import read_file, log_mel_spec_tfm, \
+    save_spectrogram, save_mask, log_cqt
+
 DISPLAY_HEIGHT = 800 # px
 SOURCE_DISPLAY_WIDTH = DISPLAY_HEIGHT # px, UI area to position sources, room assumed to be square
 SPEC_DISPLAY_WIDTH = 400 # px, right side of screen will be used to show specgrams
@@ -150,9 +161,10 @@ class Source(pg.sprite.Sprite):
                             "   Angle: " + ('%.4f' % self.angle)
         # Sound source
         if self.source_type == 0: # If source is a foreground type
-            self.sound = pg.mixer.Sound(pick_random_file(FG_PATH))
+            self.sound_path = pick_random_file(FG_PATH)
         if self.source_type == 1: # If source is a background type
-            self.sound = pg.mixer.Sound(pick_random_file(BG_PATH))
+            self.sound_path = pick_random_file(BG_PATH)
+        self.sound = pg.mixer.Sound(self.sound_path)
 
 # Intialize, render screen, start clock
 screen = pg.display.set_mode((SOURCE_DISPLAY_WIDTH + SPEC_DISPLAY_WIDTH, DISPLAY_HEIGHT))
@@ -271,11 +283,69 @@ def delete_source_selected():
     global status_timer
     status_timer = pg.time.get_ticks()
 
+specgram_image = None
+
 def render():
-    return source_list #TODO Define render
+    NUM_MICS = 8
+    RENDER_TIME = 6.0
+    all_sources = []
+    mic_array = []
+    metadata = {}
+
+    radius = 0.3  # Mic array has radius 0.3m
+    for i in range(NUM_MICS):
+        position_x = radius * np.cos(2 * np.pi / 8 * i)
+        position_y = radius * np.sin(2 * np.pi / 8 * i)
+        position_z = 0  # Assume planar for now
+        mic_array.append(Microphone([position_x, position_y, position_z]))
+
+    # generate the sound sources
+    for i in range(0, len(source_list)):
+        print(source_list[i].position[0])
+        print(source_list[i].position[1])
+        print(source_list[i].sound_path)
+        all_sources.append(SoundSource([source_list[i].position[0], source_list[i].position[1], 0.0], filename=source_list[i].sound_path))
+        metadata["source{:02d}".format(i)] = {
+            "position" : [source_list[i].position[0], source_list[i].position[1], 0.0],
+            "filename" : source_list[i].sound_path
+        }
+
+    print(all_sources)
+    scene = Scene(all_sources, mic_array)
+    scene.render(cutoff_time=RENDER_TIME)
+
+    output_data_dir = os.path.dirname(os.path.abspath(__file__))
+    output_data_dir = output_data_dir + "/output/"
+    shutil.rmtree(output_data_dir)
+    os.mkdir(output_data_dir)
+
+    # Write every mic buffer to outputs
+    for i, mic in enumerate(mic_array):
+        output_prefix = os.path.join(output_data_dir, "mic{:02d}_".format(i))
+        mic.save(output_prefix)
+        mic.reset()
+
+    metadata_file = os.path.join(output_data_dir, "metadata.json")
+    with open(metadata_file, "w") as f:
+        json.dump(metadata, f, indent=4)
+
+    # spectrogram
+    mixed_audio_file = output_data_dir + "mic00_mixed.wav"
+    specgram = log_cqt(mixed_audio_file, sample_rate=22050)
+    save_spectrogram(specgram, output_data_dir + "spectrogram.png")
+
+    global specgram_image
+    specgram_image = pg.image.load(output_data_dir + "spectrogram.png")
+    specgram_image = pg.transform.flip(specgram_image, False, True)
+    specgram_image = pg.transform.scale(specgram_image, SPECGRAM_SIZE)
+    print(specgram_image)
+
+    return source_list
 
 def play_render():
-    return  #TODO Define play_render
+    rendered_sound_dir = os.path.dirname(os.path.abspath(__file__)) + "/output/mic00_mixed.wav"
+    pg.mixer.Sound(rendered_sound_dir).play()
+    return
 
 # Button definitions and positioning
 new_source_button = Button((0,0,200,24), DARK_GREY, add_source, text="New background source", **BUTTON_STYLE)
@@ -417,9 +487,9 @@ while not exit:
             pg.draw.line(screen, DARK_GREY, meter_to_pixel_pos((i, -ROOM_SIZE//2)), meter_to_pixel_pos((i, ROOM_SIZE//2)), 1)
         for i in range(-ROOM_SIZE//2, ROOM_SIZE//2):
             pg.draw.line(screen, DARK_GREY, meter_to_pixel_pos((-ROOM_SIZE//2, i)), meter_to_pixel_pos((ROOM_SIZE//2, i)), 1)
-        
+
         #bin_in = 6
-        # If the bin_in from angle network is defined, draw the corresponding shaded polygon  
+        # If the bin_in from angle network is defined, draw the corresponding shaded polygon
         try:
             bin_in
         except NameError:
@@ -443,6 +513,8 @@ while not exit:
         pg.draw.rect(screen, LIGHT_GREY, specgram_rect)
 
         # TODO if specgram exists, draw it in the specgram area
+        if specgram_image is not None:
+            screen.blit(specgram_image, (SOURCE_DISPLAY_WIDTH + SPEC_DISPLAY_WIDTH//2 - SPECGRAM_SIZE[0]//2, render_button.rect.bottom + 16))
 
         # TODO repeat for source separation network too
 
