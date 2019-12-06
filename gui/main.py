@@ -23,6 +23,9 @@ import sys
 import pygame as pg
 import math
 import random
+import glob
+import subprocess
+import time
 
 # import Button class
 # Button class from https://github.com/Mekire/pg-button
@@ -73,7 +76,16 @@ HOVER_DARK_GREY = (37*1.8, 37*1.8, 38*1.8)
 SOURCE_TYPES = {0:"foreground", 1:"background"}
 BG_PATH = "../data/input_sounds/background/"
 FG_PATH = "../data/input_sounds/voices/"
+OUTPUT_DIR = "/Users/vivekjayaram/Documents/CSProjects/grail_mounted/d3audiorecon/gui/"
 
+# Delete old files
+subprocess.call(["./delete_remote.sh"])
+output_data_dir = os.path.dirname(os.path.abspath(__file__))
+output_data_dir = output_data_dir + "/output/"
+bin_in = None
+
+if os.path.exists(output_data_dir):
+    shutil.rmtree(output_data_dir)
 
 # Maximum number of each type of sources
 NUM_FG_SOURCES = 1
@@ -120,7 +132,8 @@ def meter_to_pixel_pos(position_in_meters: tuple):
 
 # Grab a random rile from a specific directory
 def pick_random_file(path: str):
-    return path + random.choice(os.listdir(path))
+    all_wav_files = glob.glob(os.path.join(path, "*.wav"))
+    return random.choice(all_wav_files)
 
 # Takes bin_in from angle network computes angle range corresponding to that bin
 # 0th bin_in is the bin going counterclockwise starting at the ray from the origin to (-1, 0)
@@ -218,9 +231,11 @@ def add_source(x=300, y=300, idx=len(source_list)+1, source_type=1):
 def change_source(source):
         pg.mixer.fadeout(300)
         if source.source_type == 0: # If source is a foreground type
-            source.sound = pg.mixer.Sound(pick_random_file(FG_PATH))
+            source.sound_path = pick_random_file(FG_PATH)
+            source.sound = pg.mixer.Sound(source.sound_path)
         if source.source_type == 1: # If source is a background type
-            source.sound = pg.mixer.Sound(pick_random_file(BG_PATH))
+            source.sound_path = pick_random_file(BG_PATH)
+            source.sound = pg.mixer.Sound(source.sound_path)
         global current_status
         current_status = statuses[4]
         global status_timer
@@ -283,9 +298,35 @@ def delete_source_selected():
     global status_timer
     status_timer = pg.time.get_ticks()
 
+global specgram_image
 specgram_image = None
+global rendered 
+rendered = False
+global separated_image
+separated_image = None
+global signal_separated_done
+signal_separated_done = False
+global loaded_output_dir
+loaded_output_dir = False
+global loaded_output_separated
+loaded_output_separated = False
 
 def render():
+    subprocess.call(["./delete_remote.sh"])
+    global loaded_output_dir
+    loaded_output_dir = False
+    global loaded_output_separated
+    loaded_output_separated = False
+    global signal_separated_done
+    signal_separated_done = False
+    global specgram_image
+    specgram_image = None
+    global separated_image
+    separated_image = None
+    global bin_in
+    bin_in = None
+    global rendered
+    rendered = False
     NUM_MICS = 8
     RENDER_TIME = 6.0
     all_sources = []
@@ -304,20 +345,26 @@ def render():
         print(source_list[i].position[0])
         print(source_list[i].position[1])
         print(source_list[i].sound_path)
-        all_sources.append(SoundSource([source_list[i].position[0], source_list[i].position[1], 0.0], filename=source_list[i].sound_path))
+
+        reduce_factor = 1.0 if i == 0 else 0.5
+        all_sources.append(SoundSource([source_list[i].position[0], source_list[i].position[1], 0.0],
+                                       filename=source_list[i].sound_path, reduce_factor=reduce_factor))
         metadata["source{:02d}".format(i)] = {
             "position" : [source_list[i].position[0], source_list[i].position[1], 0.0],
             "filename" : source_list[i].sound_path
         }
 
-    print(all_sources)
     scene = Scene(all_sources, mic_array)
-    scene.render(cutoff_time=RENDER_TIME)
+    scene.render(cutoff_time=RENDER_TIME, volume_boost=4.0)
+
 
     output_data_dir = os.path.dirname(os.path.abspath(__file__))
     output_data_dir = output_data_dir + "/output/"
-    shutil.rmtree(output_data_dir)
-    os.mkdir(output_data_dir)
+    
+    if os.path.exists(output_data_dir):
+        shutil.rmtree(output_data_dir)
+
+    os.makedirs(output_data_dir)
 
     # Write every mic buffer to outputs
     for i, mic in enumerate(mic_array):
@@ -331,20 +378,34 @@ def render():
 
     # spectrogram
     mixed_audio_file = output_data_dir + "mic00_mixed.wav"
-    specgram = log_cqt(mixed_audio_file, sample_rate=22050)
+    specgram = log_cqt(mixed_audio_file, sample_rate=22500)
     save_spectrogram(specgram, output_data_dir + "spectrogram.png")
 
-    global specgram_image
     specgram_image = pg.image.load(output_data_dir + "spectrogram.png")
     specgram_image = pg.transform.flip(specgram_image, False, True)
     specgram_image = pg.transform.scale(specgram_image, SPECGRAM_SIZE)
-    print(specgram_image)
 
+    processes = []
+    for i in range(8):
+        p = subprocess.Popen(["scp", "output/mic{:02d}_mixed.wav".format(i), "vjayaram@lungo.cs.washington.edu:/projects/grail/vjayaram/d3audiorecon/gui/output/"])
+        processes.append(p)
+
+    for p in processes:
+        p.wait()
+
+    subprocess.Popen(["./forward.sh"])
+
+    rendered = True
     return source_list
 
 def play_render():
     rendered_sound_dir = os.path.dirname(os.path.abspath(__file__)) + "/output/mic00_mixed.wav"
     pg.mixer.Sound(rendered_sound_dir).play()
+    return
+
+def play_separated():
+    separated_sound_dir = "unet_cqt_output.wav"
+    pg.mixer.Sound(separated_sound_dir).play()
     return
 
 # Button definitions and positioning
@@ -360,7 +421,7 @@ play_source_button.rect.bottomleft = (change_source_button.rect.bottomright[0] +
 delete_source_button = Button((0,0,120,24), DARK_RED, delete_source_selected, text="Delete source", **RED_BUTTON_STYLE)
 delete_source_button.rect.bottomleft = (play_source_button.rect.bottomright[0] + 5, screen.get_rect().bottomleft[1] - 5)
 
-render_button = Button((0,0,368,64), BLUE, render, text="RENDER", **BLUE_BUTTON_STYLE)
+render_button = Button((0,0,368,64), BLUE, render, text="RENDER AND RUN", **BLUE_BUTTON_STYLE)
 render_button.rect.center = (SOURCE_DISPLAY_WIDTH + SPEC_DISPLAY_WIDTH//2, 48)
 
 # Define area for rendered specgram placeholder
@@ -369,11 +430,19 @@ specgram_rect  = pg.Rect((SOURCE_DISPLAY_WIDTH + SPEC_DISPLAY_WIDTH//2 - SPECGRA
 play_rendered_button = Button((0,0,368,24), DARK_GREY, play_render, text="Play rendered mix", **BUTTON_STYLE)
 play_rendered_button.rect.center = (SOURCE_DISPLAY_WIDTH + SPEC_DISPLAY_WIDTH//2, specgram_rect.bottom + play_rendered_button.rect.height//2 + 16)
 
-button_list = [new_source_button, change_source_button, play_source_button, delete_source_button, render_button, play_rendered_button]
+separated_rect  = pg.Rect((SOURCE_DISPLAY_WIDTH + SPEC_DISPLAY_WIDTH//2 - SPECGRAM_SIZE[0]//2, play_rendered_button.rect.bottom + 16), SPECGRAM_SIZE)
+
+play_separated_button = Button((0,0,368,24), DARK_GREY, play_separated, text="Play separated source mix", **BUTTON_STYLE)
+play_separated_button.rect.center = (SOURCE_DISPLAY_WIDTH + SPEC_DISPLAY_WIDTH//2, separated_rect.bottom + play_separated_button.rect.height//2 + 16)
+
+
+button_list = [new_source_button, change_source_button, play_source_button, delete_source_button, render_button, play_rendered_button, play_separated_button]
 
 # Add one foreground source
 add_source(x=random.randint(0.25*SOURCE_DISPLAY_WIDTH, 0.75*SOURCE_DISPLAY_WIDTH), y=random.randint(0.25*DISPLAY_HEIGHT, 0.75*DISPLAY_HEIGHT), source_type=0)
 
+
+lastTimestamp = time.time()
 # Main program loop
 while not exit:
     # Get pg  event
@@ -393,6 +462,7 @@ while not exit:
         delete_source_button.check_event(event)
         render_button.check_event(event)
         play_rendered_button.check_event(event)
+        play_separated_button.check_event(event)
 
         # Set clicked on a button flag
         for button in button_list:
@@ -454,6 +524,7 @@ while not exit:
             # Update the clicked sprite's position for drag behavior
             for source in source_list:
                 if source.clicked == True:
+                    bin_in = None
                     pos = pg.mouse.get_pos()
                     source.rect.x = min(pos[0] - pos_offset[0], SOURCE_DISPLAY_WIDTH-(source.rect.width//2))
                     source.rect.y = pos[1] - pos_offset[1]
@@ -474,31 +545,49 @@ while not exit:
                         source.image = source.images[2]
 
 
-        # Clear screen
-        screen.fill(WHITE)
+    # Clear screen
+    screen.fill(WHITE)
+    source_ui_area.fill((0, 0, 0, 0))
 
-        # Draw center indicator
-        mic_img = pg.image.load("images/mic.png").convert_alpha()
-        mic_img_rect = mic_img.get_rect()
-        screen.blit(mic_img, (SOURCE_DISPLAY_WIDTH//2 - mic_img_rect.width//2, SOURCE_DISPLAY_WIDTH//2 - mic_img_rect.height//2))
+    # Draw center indicator
+    mic_img = pg.image.load("images/mic.png").convert_alpha()
+    mic_img_rect = mic_img.get_rect()
+    screen.blit(mic_img, (SOURCE_DISPLAY_WIDTH//2 - mic_img_rect.width//2, SOURCE_DISPLAY_WIDTH//2 - mic_img_rect.height//2))
 
-        # Draw grid
-        for i in range(-ROOM_SIZE//2, ROOM_SIZE//2):
-            pg.draw.line(screen, DARK_GREY, meter_to_pixel_pos((i, -ROOM_SIZE//2)), meter_to_pixel_pos((i, ROOM_SIZE//2)), 1)
-        for i in range(-ROOM_SIZE//2, ROOM_SIZE//2):
-            pg.draw.line(screen, DARK_GREY, meter_to_pixel_pos((-ROOM_SIZE//2, i)), meter_to_pixel_pos((ROOM_SIZE//2, i)), 1)
+    # Draw grid
+    for i in range(-ROOM_SIZE//2, ROOM_SIZE//2):
+        pg.draw.line(screen, DARK_GREY, meter_to_pixel_pos((i, -ROOM_SIZE//2)), meter_to_pixel_pos((i, ROOM_SIZE//2)), 1)
+    for i in range(-ROOM_SIZE//2, ROOM_SIZE//2):
+        pg.draw.line(screen, DARK_GREY, meter_to_pixel_pos((-ROOM_SIZE//2, i)), meter_to_pixel_pos((ROOM_SIZE//2, i)), 1)
 
-        #bin_in = 6
+    if rendered:
+        if (not loaded_output_separated) and os.path.exists("unet_cqt_output.wav"):
+            time.sleep(2)
+            signal_separated_done = True
+            loaded_output_separated = True
+
+            separated_audio_file = "unet_cqt_output.wav"
+            specgram = log_cqt(separated_audio_file, sample_rate=22500)
+            save_spectrogram(specgram, os.path.join("output/", "separated_spectrogram.png"))
+
+            separated_image = pg.image.load(os.path.join("output/", "separated_spectrogram.png"))
+            separated_image = pg.transform.flip(separated_image, False, True)
+            separated_image = pg.transform.scale(separated_image, SPECGRAM_SIZE)
+            print(separated_image)
+
+        if (not loaded_output_dir) and os.path.exists("output.json"):
+            time.sleep(2)
+            loaded_output_dir = True
+
+            with open("output.json") as f:
+                data = json.load(f)
+                bin_in = data["bin"]
+
         # If the bin_in from angle network is defined, draw the corresponding shaded polygon
-        try:
-            bin_in
-        except NameError:
-            bin_in_exists = False
-        else:
-            bin_in_exists = True
+        if bin_in is not None:
             angle_range = bin_index_to_angle_range(bin_in)
 
-        if (bin_in_exists):
+
             a = int(2*ROOM_SIZE*math.cos(angle_range[0]))
             b = int(2*ROOM_SIZE*math.sin(angle_range[0]))
             c = int(2*ROOM_SIZE*math.cos(angle_range[1]))
@@ -509,43 +598,57 @@ while not exit:
                              meter_to_pixel_pos((c,d))])
         screen.blit(source_ui_area, source_ui_area.get_rect())
 
-        # Draw specgram placeholder area
-        pg.draw.rect(screen, LIGHT_GREY, specgram_rect)
+        lastTimestamp = time.time()
+    
 
-        # TODO if specgram exists, draw it in the specgram area
-        if specgram_image is not None:
-            screen.blit(specgram_image, (SOURCE_DISPLAY_WIDTH + SPEC_DISPLAY_WIDTH//2 - SPECGRAM_SIZE[0]//2, render_button.rect.bottom + 16))
+    # Draw specgram placeholder area
+    pg.draw.rect(screen, LIGHT_GREY, specgram_rect)
 
-        # TODO repeat for source separation network too
+    # TODO if specgram exists, draw it in the specgram area
+    if specgram_image is not None:
+        screen.blit(specgram_image, (SOURCE_DISPLAY_WIDTH + SPEC_DISPLAY_WIDTH//2 - SPECGRAM_SIZE[0]//2, render_button.rect.bottom + 16))
 
-        # Draw line separating source UI panel area from specgram panel
-        pg.draw.line(screen, DARK_GREY, (SOURCE_DISPLAY_WIDTH, 0), (SOURCE_DISPLAY_WIDTH, DISPLAY_HEIGHT), 5)
+    # Draw separated placeholder area
+    pg.draw.rect(screen, LIGHT_GREY, separated_rect)
 
-        # Update button looks
-        new_source_button.update(screen)
-        change_source_button.update(screen)
-        play_source_button.update(screen)
-        delete_source_button.update(screen)
-        render_button.update(screen)
+    # TODO if separated exists, draw it in the separated area
+    if separated_image is not None:
+        screen.blit(separated_image, (SOURCE_DISPLAY_WIDTH + SPEC_DISPLAY_WIDTH//2 - SPECGRAM_SIZE[0]//2, play_rendered_button.rect.bottom + 16))
+
+
+    # TODO repeat for source separation network too
+
+    # Draw line separating source UI panel area from specgram panel
+    pg.draw.line(screen, DARK_GREY, (SOURCE_DISPLAY_WIDTH, 0), (SOURCE_DISPLAY_WIDTH, DISPLAY_HEIGHT), 5)
+
+    # Update button looks
+    new_source_button.update(screen)
+    change_source_button.update(screen)
+    play_source_button.update(screen)
+    delete_source_button.update(screen)
+    render_button.update(screen)
+    if rendered:
         play_rendered_button.update(screen)
+    if signal_separated_done:
+        play_separated_button.update(screen)
 
-        # Blit status text box
-        text = font.render(current_status, True, RED, WHITE)
-        screen.blit(text, (new_source_button.rect.x, new_source_button.rect.y - text.get_rect().height - 3))
+    # Blit status text box
+    text = font.render(current_status, True, RED, WHITE)
+    screen.blit(text, (new_source_button.rect.x, new_source_button.rect.y - text.get_rect().height - 3))
 
-        # Draw sources and associated label to the screen
-        i = 0
-        for source in source_list:
-            screen.blit(source.image, (source.rect.x,source.rect.y))
-            text = font.render(source.text, True, DARK_GREY, WHITE)
-            screen.blit(text, (3,3+i*14))
-            i += 1
+    # Draw sources and associated label to the screen
+    i = 0
+    for source in source_list:
+        screen.blit(source.image, (source.rect.x,source.rect.y))
+        text = font.render(source.text, True, DARK_GREY, WHITE)
+        screen.blit(text, (3,3+i*14))
+        i += 1
 
-        # Update the screen
-        pg.display.update()
+    # Update the screen
+    pg.display.update()
 
-        # 60 fps
-        clock.tick(60)
+    # 60 fps
+    clock.tick(60)
 
 # Quit cleanly if game is quit
 pg.quit()

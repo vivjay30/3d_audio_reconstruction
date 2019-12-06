@@ -50,7 +50,8 @@ class SoundSource(object):
                  offset: float = 0.0,
                  duration=None,
                  start_time: float = 0.0,
-                 trim_silence=True):
+                 trim_silence=True,
+                 reduce_factor=1.0):
         """
         Either filename should be passed, or data and sample rate
         """
@@ -98,6 +99,8 @@ class SoundSource(object):
                 new_audio = librosa.effects.trim(self.audio, top_db=80)[0]
             self.audio = new_audio
 
+        self.audio *= reduce_factor
+
     def save(self, filename: str):
         sf.write(filename, self.audio, self.sample_rate)
 
@@ -115,7 +118,8 @@ class Scene(object):
     def render(self,
                cutoff_time: float,
                geometric_attenuation=True,
-               atmospheric_attenuation=True):
+               atmospheric_attenuation=True,
+               volume_boost=1.0):
         """
         Render all sound sources to all microphones.
         Only does ITD and attenuation.
@@ -150,6 +154,7 @@ class Scene(object):
                 # Pad if necessary to cutoff_time
                 curr_buffer = np.pad(curr_buffer, (0, total_samples))
                 curr_buffer = curr_buffer[:total_samples]
+                curr_buffer *= volume_boost
 
                 # Append to each mic
                 mic.sources_gt.append(curr_buffer)
