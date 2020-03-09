@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import librosa
 import soundfile as sf
+from pysndfx import AudioEffectsChain
 
 from d3audiorecon.renderer.constants import \
     SPEED_OF_SOUND, ATTENUATION_ALPHA
@@ -119,7 +120,9 @@ class Scene(object):
                cutoff_time: float,
                geometric_attenuation=True,
                atmospheric_attenuation=True,
-               volume_boost=1.0):
+               volume_boost=1.0,
+               random_shift=0.0,
+               random_reverb=False):
         """
         Render all sound sources to all microphones.
         Only does ITD and attenuation.
@@ -135,7 +138,7 @@ class Scene(object):
             # Render all sources to that mic
             for source in self.sources:
                 # ITD
-                distance = np.linalg.norm(mic.position - source.position)
+                distance = np.linalg.norm(mic.position - source.position) + np.random.normal(scale=random_shift)
                 curr_start_time = source.start_time + distance / SPEED_OF_SOUND
                 curr_start_samples = int(source.sample_rate * curr_start_time)
                 curr_buffer = np.concatenate((np.zeros(
@@ -150,6 +153,14 @@ class Scene(object):
                     curr_buffer = np.multiply(
                         curr_buffer, np.exp(-ATTENUATION_ALPHA * distance)
                     )  # attenuation due to atmosphere https://en.wikibooks.org/wiki/Engineering_Acoustics/Outdoor_Sound_Propagation
+
+                # Reverb
+                if random_reverb:
+                    fx = (
+                        AudioEffectsChain()
+                        .reverb()
+                    )
+                curr_buffer = fx(curr_buffer)
 
                 # Pad if necessary to cutoff_time
                 curr_buffer = np.pad(curr_buffer, (0, total_samples))
